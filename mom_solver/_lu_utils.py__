@@ -1,0 +1,63 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Aug 20 13:45:16 2018
+
+@author: 913
+"""
+import numpy as np
+
+class RankRevealingMethod_tradition(object):
+    def __init__(self):
+        self.threshold_NULL = 1.e-10
+        pass
+    def LUDec(self, matrix, rows, columns,threshold_remain=1.e-3,threshold_rank=-1): # 列选主元的LU分解, 计算量为N^2
+        try:
+            B = np.zeros([rows,columns])
+            # log1 = logging.getLogger(mylogger0.name+".func1")
+            threshold_NULL = self.threshold_NULL
+            if threshold_rank == -1:
+                rank = columns
+            else:
+                rank = threshold_rank
+            L = np.zeros([rows,columns],dtype=np.complex).transpose()
+            U = np.zeros([rows,columns],dtype=np.complex)
+            Z_norm = 0.
+            # 6.	从k=1开始遍历所有列            
+            getZ_norms = lambda ii: np.abs(L[ii].dot(l[:,0]))*np.abs(U[ii].dot(u[0,:]))
+            for k in np.arange(1,columns+1):
+                # log1.debug('the %d column', k)
+                # a)	提取A的第k列，作为l并保存
+                l = matrix.getCol(k) - B[:,k-1:k]
+                # b)	计算该列的最大元及其编号j
+                j = np.argmax(np.abs(l))+1
+                max_lj = l[j-1,0]
+                if np.abs(max_lj) < threshold_NULL:
+                    continue
+                # c)	提取A的第j行，作为u并保存
+                u = matrix.getRow(j) - B[j-1:j,:]
+                # d)	将l除以最大元，并保存l
+                l = l/max_lj
+                # e)	A =A-l*u.T
+                B = B + l.dot(u)
+                # d)	判断A是否符合退出条件，如果符合则退出，否则继续遍历
+                addMatrix_norm = np.linalg.norm(l)*np.linalg.norm(u)
+                
+                Z_norm = Z_norm + addMatrix_norm**2
+                Z_norm_app = map(getZ_norms, xrange(k-1))
+                Z_norm = Z_norm+np.sum(Z_norm_app)
+#                for ii in xrange(k-1):
+#                    Z_norm = Z_norm + 2.*np.abs(L[ii].dot(l[:,0]))*np.abs(U[ii].dot(u[0,:]))
+                res = addMatrix_norm/np.sqrt(Z_norm)
+                # log1.debug('the res of %d column = %.2e', k,res)
+                # g)    保存L和U
+                L[k-1] = l[:,0]
+                U[k-1] = u[0,:]
+                if res <= threshold_remain  or len(L)>=rank:
+                    break
+            LL = L[0:k,:].reshape([-1,rows]) #.copy()
+            UU = U[0:k,:].reshape([-1,columns]) #.copy()
+            return (LL.T,UU, (res,), k)        
+            pass
+        except Exception as e:
+            print e
+            raise
